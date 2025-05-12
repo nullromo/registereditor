@@ -150,6 +150,11 @@ M.update_register_buffers = function(yank)
     -- get the register that is being recorded or yanked into
     local register = yank and vim.api.nvim_get_vvar("event").regname
         or vim.fn.reg_recording()
+    -- if this is a yank operation and no register was specified, then we will
+    -- be yanking into the " register
+    if yank and register == "" then
+        register = '"'
+    end
     -- get a list of all buffers
     local all_buffers = vim.api.nvim_list_bufs()
     -- iterate over all buffers, updating the matching ones
