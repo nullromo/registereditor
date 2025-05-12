@@ -39,6 +39,12 @@ local function set_register(reg)
     end
 end
 
+-- set the contents of a buffer and mark it is not modified
+local function set_buffer_content(buffer, content)
+    vim.api.nvim_buf_set_lines(buffer, 0, -1, false, content)
+    vim.api.nvim_set_option_value("modified", false, { buf = buffer })
+end
+
 local function open_editor_window(reg)
     if reg:len() > 1 or not reg:match('["0-9a-zA-Z-*+.:%%#/=_]') then
         print("Not a register: @" .. reg)
@@ -88,9 +94,7 @@ local function open_editor_window(reg)
     vim.bo.swapfile = false
     vim.bo.buflisted = false
 
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, buf_lines)
-
-    vim.bo.modified = false
+    set_buffer_content(0, buf_lines)
 
     -- Special readonly registers
     if reg:match("[.:%%#]") then
@@ -157,7 +161,7 @@ M.update_register_buffers = function(yank)
             local buf_lines = yank and reg_content or reg_content:split("\n")
             -- update the buffer with the register contents
             vim.schedule(function()
-                vim.api.nvim_buf_set_lines(buffer, 0, -1, false, buf_lines)
+                set_buffer_content(buffer, buf_lines)
             end)
         end
     end
