@@ -43,10 +43,11 @@ local function setup_autocommands()
         end),
     })
 
-    -- update open RegisterEdit buffers for the - register. There are many ways
-    -- for the - register to update.
-    -- * When using x from normal mode - the TextChanged event fires
-    -- * When using s from visual mode - the InsertEnter event fires
+    -- update open RegisterEdit buffers for the - register. Vim has many ways
+    -- for the - register to update internally. Each event in this list needs
+    -- at least one example as a justification for being included
+    -- * TextChanged - needed when using x from normal mode
+    -- * InsertEnter - needed when using s from visual mode
     vim.api.nvim_create_autocmd({ "TextChanged", "InsertEnter" }, {
         callback = vim.schedule_wrap(function()
             internals.update_register_buffers(
