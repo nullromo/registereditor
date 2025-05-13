@@ -16,15 +16,31 @@ local function setup_autocommands()
     -- update open RegisterEdit buffers when a macro is recorded
     vim.api.nvim_create_autocmd({ "RecordingLeave" }, {
         callback = function()
-            internals.update_register_buffers(false)
+            internals.update_register_buffers(
+                vim.fn.reg_recording(),
+                vim.api.nvim_get_vvar("event").regcontents:split("\n")
+            )
         end,
     })
 
     -- update open RegisterEdit buffers when text is yanked into a register
     vim.api.nvim_create_autocmd({ "TextYankPost" }, {
         callback = function()
-            internals.update_register_buffers(true)
+            local event = vim.api.nvim_get_vvar("event")
+            internals.update_register_buffers(
+                -- if no register was specified for the yank, then we will be
+                -- yanking into the " register
+                event.regname == "" and '"' or event.regname,
+                event.regcontents
+            )
         end,
+    })
+
+    -- update open RegisterEdit buffers after using the command line
+    vim.api.nvim_create_autocmd({ "CmdlineLeave" }, {
+        callback = vim.schedule_wrap(function()
+            internals.refresh_all_register_buffers()
+        end),
     })
 end
 
