@@ -33,6 +33,15 @@ local function setup_autocommands()
                 event.regname == "" and '"' or event.regname,
                 event.regcontents
             )
+
+            -- update numbered registers
+            for register_number = 1, 10 do
+                local register = tostring(register_number - 1)
+                internals.update_register_buffers(
+                    register,
+                    vim.fn.getreg(register):split("\n")
+                )
+            end
         end,
     })
 
