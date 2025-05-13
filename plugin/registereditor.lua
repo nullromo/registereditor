@@ -60,6 +60,16 @@ local function setup_autocommands()
             )
         end),
     })
+
+    -- update open RegisterEdit buffers for the . register.
+    vim.api.nvim_create_autocmd({ "InsertLeave" }, {
+        callback = function()
+            internals.update_register_buffers(
+                ".",
+                vim.fn.getreg("."):split("\n")
+            )
+        end,
+    })
 end
 
 setup_user_commands()
