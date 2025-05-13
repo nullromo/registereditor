@@ -144,40 +144,57 @@ M.open_all_windows = function(arg)
     end
 end
 
--- update all open RegisterEdit buffers based on the macro that was just
--- recorded
-M.update_register_buffers = function(yank)
-    -- get the register that is being recorded or yanked into
-    local register = yank and vim.api.nvim_get_vvar("event").regname
-        or vim.fn.reg_recording()
-    -- if this is a yank operation and no register was specified, then we will
-    -- be yanking into the " register
-    if yank and register == "" then
-        register = '"'
+-- tells whether or not a buffer belongs to this plugin
+local function check_buffer_is_register_buffer(buffer)
+    return vim.api.nvim_get_option_value("filetype", { buf = buffer })
+        == "registereditor"
+end
+
+-- updates a given buffer with the given content if it matches the given
+-- register
+local function update_register_buffer(buffer, register, content)
+    -- if the buffer is named @<register>, then it should be updated
+    if vim.api.nvim_buf_get_name(buffer):endswith("@" .. register) then
+        -- update the buffer with the register contents
+        vim.schedule(function()
+            set_buffer_content(buffer, content)
+        end)
     end
-    -- get a list of all buffers
-    local all_buffers = vim.api.nvim_list_bufs()
-    -- iterate over all buffers, updating the matching ones
-    for _, buffer in pairs(all_buffers) do
-        -- get info about the buffer
-        local buffer_name = vim.api.nvim_buf_get_name(buffer)
-        local buffer_filetype =
-            vim.api.nvim_get_option_value("filetype", { buf = buffer })
-        -- if the buffer has the 'registereditor' filetype and is named
-        -- @<register>, then it should be updated
-        if
-            buffer_filetype == "registereditor"
-            and buffer_name:endswith("@" .. register)
-        then
-            -- get the content of the register
-            local reg_content = vim.api.nvim_get_vvar("event").regcontents
-            local buf_lines = yank and reg_content or reg_content:split("\n")
-            -- update the buffer with the register contents
-            vim.schedule(function()
-                set_buffer_content(buffer, buf_lines)
-            end)
+end
+
+-- perform an action on all registereditor buffers
+local function loop_over_register_buffers(action)
+    -- iterate over all buffers
+    for _, buffer in pairs(vim.api.nvim_list_bufs()) do
+        -- ensure the buffer has the 'registereditor' filetype
+        if check_buffer_is_register_buffer(buffer) then
+            action(buffer)
         end
     end
+end
+
+-- update all open RegisterEdit buffers
+M.update_register_buffers = function(register, content)
+    loop_over_register_buffers(function(buffer)
+        update_register_buffer(buffer, register, content)
+    end)
+end
+
+-- updates a buffer to match the contents of the underlying register
+local function refresh_register_buffer(buffer)
+    -- find the register for this buffer
+    local register = string.sub(vim.api.nvim_buf_get_name(buffer), -1, -1)
+    assert(check_string_is_register(register))
+    -- get the contents of the register
+    local content = vim.fn.getreg(register):split("\n")
+    -- update the buffer contents to match the register
+    set_buffer_content(buffer, content)
+end
+
+M.refresh_all_register_buffers = function()
+    loop_over_register_buffers(function(buffer)
+        refresh_register_buffer(buffer)
+    end)
 end
 
 local function get_register_from_buffer(buffer)
