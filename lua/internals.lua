@@ -180,10 +180,14 @@ M.update_register_buffers = function(register, content)
     end)
 end
 
+local function get_register_from_buffer(buffer)
+    return string.sub(vim.api.nvim_buf_get_name(buffer), -1, -1)
+end
+
 -- updates a buffer to match the contents of the underlying register
 local function refresh_register_buffer(buffer)
     -- find the register for this buffer
-    local register = string.sub(vim.api.nvim_buf_get_name(buffer), -1, -1)
+    local register = get_register_from_buffer(buffer)
     assert(check_string_is_register(register))
     -- get the contents of the register
     local content = vim.fn.getreg(register):split("\n")
@@ -195,10 +199,6 @@ M.refresh_all_register_buffers = function()
     loop_over_register_buffers(function(buffer)
         refresh_register_buffer(buffer)
     end)
-end
-
-local function get_register_from_buffer(buffer)
-    return string.sub(vim.api.nvim_buf_get_name(buffer), -1, -1)
 end
 
 local function close_buffer(buffer)
