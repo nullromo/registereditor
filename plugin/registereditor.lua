@@ -101,6 +101,20 @@ local function setup_autocommands()
             )
         end,
     })
+
+    -- update open RegisterEdit buffers for the # and % registers.
+    vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
+        callback = function()
+            internals.update_register_buffers(
+                "#",
+                vim.fn.getreg("#"):split("\n")
+            )
+            internals.update_register_buffers(
+                "%",
+                vim.fn.getreg("%"):split("\n")
+            )
+        end,
+    })
 end
 
 local function setup_keymaps()
