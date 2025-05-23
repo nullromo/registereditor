@@ -41,6 +41,7 @@ local function setup_autocommands()
 
     -- update open RegisterEdit buffers when a macro is recorded
     vim.api.nvim_create_autocmd({ "RecordingLeave" }, {
+        group = autocommand_group,
         callback = function()
             internals.update_register_buffers(
                 vim.fn.reg_recording(),
@@ -51,6 +52,7 @@ local function setup_autocommands()
 
     -- update open RegisterEdit buffers when text is yanked into a register
     vim.api.nvim_create_autocmd({ "TextYankPost" }, {
+        group = autocommand_group,
         callback = function()
             local event = vim.api.nvim_get_vvar("event")
             internals.update_register_buffers(
@@ -73,6 +75,7 @@ local function setup_autocommands()
 
     -- update open RegisterEdit buffers after using the command line
     vim.api.nvim_create_autocmd({ "CmdlineLeave" }, {
+        group = autocommand_group,
         callback = vim.schedule_wrap(function()
             internals.refresh_all_register_buffers()
         end),
@@ -84,6 +87,7 @@ local function setup_autocommands()
     -- * TextChanged - needed when using x from normal mode
     -- * InsertEnter - needed when using s from visual mode
     vim.api.nvim_create_autocmd({ "TextChanged", "InsertEnter" }, {
+        group = autocommand_group,
         callback = vim.schedule_wrap(function()
             internals.update_register_buffers(
                 "-",
@@ -94,6 +98,7 @@ local function setup_autocommands()
 
     -- update open RegisterEdit buffers for the . register.
     vim.api.nvim_create_autocmd({ "InsertLeave" }, {
+        group = autocommand_group,
         callback = function()
             internals.update_register_buffers(
                 ".",
@@ -104,6 +109,7 @@ local function setup_autocommands()
 
     -- update open RegisterEdit buffers for the # and % registers.
     vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
+        group = autocommand_group,
         callback = function()
             internals.update_register_buffers(
                 "#",
