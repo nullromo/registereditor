@@ -1,5 +1,31 @@
 local internals = require("internals")
 
+-- add a callback to a keypress without affecting existing keymaps
+local add_key_trigger = function(mode, key, callback, prepend)
+    -- get the current keymap for the key
+    local keymap = vim.fn.maparg(key, mode, false, true)
+
+    -- if there is no current keymap, create a new keymap with the new callback
+    if next(keymap) == nil then
+        vim.keymap.set(mode, key, callback)
+        return
+    end
+
+    -- create a new keymap that calls both the old and new callbacks
+    vim.keymap.set(mode, key, function()
+        local result
+        -- the ordering of the old and new callbacks can be chosen
+        if prepend then
+            callback()
+            result = keymap.callback()
+        else
+            result = keymap.callback()
+            callback()
+        end
+        return result
+    end, { expr = true, remap = true })
+end
+
 local function setup_user_commands()
     vim.api.nvim_create_user_command("RegisterEdit", function(opts)
         internals.open_all_windows(opts.args)
@@ -77,5 +103,14 @@ local function setup_autocommands()
     })
 end
 
+local function setup_keymaps()
+    local update_slash_register = vim.schedule_wrap(function()
+        internals.update_register_buffers("/", vim.fn.getreg("/"):split("\n"))
+    end)
+    add_key_trigger("n", "*", update_slash_register)
+    add_key_trigger("n", "#", update_slash_register)
+end
+
 setup_user_commands()
 setup_autocommands()
+setup_keymaps()
