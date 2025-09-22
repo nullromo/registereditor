@@ -24,6 +24,18 @@ local function set_register(reg)
     end
 end
 
+local highlight_namespace = vim.api.nvim_create_namespace("registereditor")
+vim.api.nvim_set_hl(highlight_namespace, "RegisterEditorEscaped", {
+    fg = "#FF0000",
+    bg = vim.api.nvim_get_hl(0, { name = "Normal" }).bg,
+    bold = true,
+})
+vim.api.nvim_set_hl(highlight_namespace, "RegisterEditorNonEscaped", {
+    fg = "#00FF00",
+    bg = vim.api.nvim_get_hl(0, { name = "Normal" }).bg,
+    bold = true,
+})
+
 -- set the contents of a buffer and mark it is not modified
 local function set_buffer_content(buffer, content)
     -- get existing buffer content
@@ -42,14 +54,26 @@ local function set_buffer_content(buffer, content)
     end
 
     -- if the content changed, then actually modify the buffer
+    local height = math.min(#content, MAX_BUFFER_LINES)
     if content_changed then
         vim.api.nvim_buf_set_lines(buffer, 0, -1, false, content)
         vim.api.nvim_set_option_value("modified", false, { buf = buffer })
-        vim.api.nvim_win_set_height(
-            vim.fn.bufwinid(buffer),
-            math.min(#content, MAX_BUFFER_LINES)
-        )
+        vim.api.nvim_win_set_height(vim.fn.bufwinid(buffer), height)
     end
+
+    -- change the color of the buffer
+    pcall(function()
+        vim.api.nvim_buf_set_extmark(0, highlight_namespace, 0, 0, {
+            id = 1,
+            hl_group = vim.api.nvim_buf_get_var(0, "escaped") and "RegisterEditorEscaped"
+                or "RegisterEditorNonEscaped",
+            -- TODO: for some reason this call can trigger an error saying "invalid
+            -- end_row: out of range" even though the docs say that end_row is
+            -- 0-based and inclusive. When I run this on a 1-line buffer with
+            -- end_row = 0 it gives an error
+            end_row = height,
+        })
+    end)
 end
 
 local function open_editor_window(reg)
@@ -100,6 +124,9 @@ local function open_editor_window(reg)
     vim.bo.bufhidden = "wipe"
     vim.bo.swapfile = false
     vim.bo.buflisted = false
+
+    vim.api.nvim_buf_set_var(0, "escaped", true)
+    vim.api.nvim_win_set_hl_ns(0, highlight_namespace)
 
     set_buffer_content(vim.fn.bufnr(), buf_lines)
 
@@ -238,6 +265,51 @@ local function close_windows(arg)
     end)
 end
 
+local escape_command = function(arg)
+    -- only allow the escape command from a registereditor buffer
+    if vim.bo.filetype ~= "registereditor" then
+        print(
+            "RegisterEditor escape mode can only be modified from a RegisterEditor buffer"
+        )
+        return
+    end
+
+    -- determine the new setting and whether a change is taking place
+    local previous_setting = vim.api.nvim_buf_get_var(0, "escaped")
+    local new_setting = nil
+    if arg == "on" then
+        if previous_setting == false then
+            new_setting = true
+        end
+    elseif arg == "off" then
+        if previous_setting == true then
+            new_setting = false
+        end
+    elseif arg == "toggle" or arg == "" then
+        new_setting = not previous_setting
+    else
+        print('RegisterEditor escape mode must be "on", "off", "", or "toggle"')
+        return
+    end
+
+    -- if new_setting is not nil, then we need to make a change
+    if new_setting ~= nil then
+        -- update the buffer variable
+        vim.api.nvim_buf_set_var(0, "escaped", new_setting)
+
+        -- transform the buffer content
+        local content = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+        for index, line in ipairs(content) do
+            if new_setting then
+                content[index] = vim.fn.keytrans(line)
+            else
+                content[index] = vim.api.nvim_replace_termcodes(line, true, false, true)
+            end
+        end
+        update_register_buffer(0, get_register_from_buffer(0), content)
+    end
+end
+
 -- main entry point for the :RegisterEditor user command
 M.registereditor_command = function(arg)
     -- split the first argument from the rest of the arguments
@@ -248,6 +320,8 @@ M.registereditor_command = function(arg)
         open_all_windows(split_result.rest)
     elseif split_result.first == "close" then
         close_windows(split_result.rest)
+    elseif split_result.first == "escape" then
+        escape_command(split_result.rest)
     else
         open_all_windows(arg)
     end
